@@ -22,6 +22,7 @@ PDU転送は、
 箱庭では、その基本形として  
 `immediate / throttle / ticker` の3つの転送ポリシーを採用します。
 
+---
 
 ### immediate（即時反応）
 
@@ -75,22 +76,50 @@ PDU転送は、
 
 ### 最小構成（immediate）
 
+ノード１：
 ```json
 {
-  "bridge": {
-    "name": "sample-bridge",
-    "source": {
-      "endpoint": "src_endpoint.json"
-    },
-    "destinations": [
-      {
-        "endpoint": "dst_endpoint_1.json"
-      }
-    ],
-    "policy": {
-      "type": "immediate"
+  "node": "node1",
+  "endpoints": {
+    "local": { "file": "local_endpoint1.json" },
+    "wire_tx_to_node2": { "file": "node1_wire_tx_to_node2.json" }
+  },
+  "bridges": [
+    {
+      "name": "node1->node2",
+      "source_endpoint": "local",
+      "dest_endpoints": ["wire_tx_to_node2"],
+      "default_policy": { "type": "immediate" },
+      "transfer_pdus": [
+        { "robot_name": "Drone", "pdu_name": "pos" },
+        { "robot_name": "Drone", "pdu_name": "status" }
+      ]
     }
-  }
+  ]
+}
+
+```
+
+ノード２：側：
+```json
+{
+  "node": "node2",
+  "endpoints": {
+    "wire_rx_from_node1": { "file": "node2_wire_rx_from_node1.json" },
+    "local": { "file": "local_endpoint2.json" }
+  },
+  "bridges": [
+    {
+      "name": "node1->node2",
+      "source_endpoint": "wire_rx_from_node1",
+      "dest_endpoints": ["local"],
+      "default_policy": { "type": "immediate" },
+      "transfer_pdus": [
+        { "robot_name": "Drone", "pdu_name": "pos" },
+        { "robot_name": "Drone", "pdu_name": "status" }
+      ]
+    }
+  ]
 }
 ```
 
