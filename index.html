@@ -1,0 +1,818 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Hakoniwa PDU Bridge Graph Editor (Vanilla JS)</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { 
+      margin: 0; 
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      overflow: hidden;
+    }
+    .app { 
+      display: grid; 
+      grid-template-columns: 1fr 360px; 
+      height: 100vh; 
+    }
+
+    .canvas-area {
+      position: relative;
+      background: #fafafa;
+      overflow: hidden;
+    }
+
+    .topbar {
+      position: absolute; 
+      z-index: 100; 
+      left: 12px; 
+      top: 12px;
+      display: flex; 
+      gap: 8px; 
+      align-items: center;
+      background: rgba(255,255,255,.95); 
+      border: 1px solid #ddd; 
+      border-radius: 12px;
+      padding: 10px 12px;
+      box-shadow: 0 8px 20px rgba(0,0,0,.08);
+    }
+    
+    .btn { 
+      font: inherit; 
+      border: 1px solid #ccc; 
+      background: #fff; 
+      border-radius: 10px; 
+      padding: 8px 12px; 
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn:hover { background: #f5f5f5; }
+    .btn.primary { border-color: #888; font-weight: 600; }
+    .muted { color: #666; font-size: 12px; }
+
+    #canvas {
+      width: 100%;
+      height: 100%;
+      cursor: grab;
+    }
+    #canvas.dragging { cursor: grabbing; }
+
+    /* Node styles */
+    .node {
+      cursor: move;
+    }
+    .node-rect {
+      fill: white;
+      stroke: #d9d9d9;
+      stroke-width: 1.5;
+      filter: drop-shadow(0 4px 12px rgba(0,0,0,.08));
+    }
+    .node-title {
+      font-weight: 800;
+      font-size: 16px;
+      fill: #111;
+    }
+    .node-badge {
+      font-size: 11px;
+      fill: #666;
+    }
+    .node-info {
+      font-size: 11px;
+      fill: #666;
+    }
+
+    /* Port styles */
+    .port {
+      cursor: grab;
+      transition: all 0.15s;
+    }
+    .port:hover circle {
+      fill: #4a9eff;
+      r: 7;
+    }
+    .port.dragging {
+      cursor: grabbing;
+    }
+    .port circle {
+      fill: #111;
+    }
+
+    /* Edge styles */
+    .edge {
+      cursor: pointer;
+      transition: stroke 0.2s;
+    }
+    .edge:hover {
+      stroke: #4a9eff !important;
+      stroke-width: 3;
+    }
+    .edge.selected {
+      stroke: #2563eb !important;
+      stroke-width: 3;
+    }
+
+    /* Sidebar */
+    .side {
+      border-left: 1px solid #e5e5e5;
+      padding: 12px;
+      overflow: auto;
+      background: #fbfbfb;
+    }
+    .panel {
+      background: #fff; 
+      border: 1px solid #e6e6e6; 
+      border-radius: 12px;
+      padding: 12px; 
+      margin-bottom: 12px;
+    }
+    .panel h2 { 
+      font-size: 14px; 
+      margin: 0 0 10px; 
+      font-weight: 700;
+    }
+    .grid { 
+      display: grid; 
+      grid-template-columns: 110px 1fr; 
+      gap: 8px 10px; 
+      align-items: center; 
+    }
+    input, select, textarea { font: inherit; }
+    input[type="text"], input[type="number"], select, textarea {
+      width: 100%; 
+      padding: 6px 8px; 
+      border: 1px solid #ccc; 
+      border-radius: 8px;
+    }
+    textarea { 
+      height: 120px; 
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      resize: vertical;
+    }
+    pre {
+      margin: 0; 
+      padding: 10px; 
+      border: 1px solid #eee; 
+      border-radius: 10px;
+      background: #0b1020; 
+      color: #d6e1ff; 
+      overflow: auto; 
+      font-size: 11px;
+      max-height: 400px;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="canvas-area">
+      <div class="topbar">
+        <button class="btn primary" id="add-node-btn">ノード追加</button>
+        <button class="btn" id="download-btn">JSON出力(DL)</button>
+        <div class="muted">黒ポートをドラッグで移動。ポート同士をつなぐと矢印付きの線ができます。</div>
+      </div>
+      <svg id="canvas"></svg>
+    </div>
+    <div class="side">
+      <div class="panel">
+        <h2>ノードの設定</h2>
+        <div id="node-config"></div>
+      </div>
+      <div class="panel">
+        <h2>線(Bridge)の設定</h2>
+        <div id="edge-config"></div>
+      </div>
+      <div class="panel">
+        <h2>JSONプレビュー（全ノード）</h2>
+        <pre id="json-preview"></pre>
+        <div class="muted" style="margin-top: 8px;">
+          ※ 線1本を、source側(tx)とtarget側(rx)に自動展開して出力します。
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(function() {
+  const svg = document.getElementById('canvas');
+  const NS = 'http://www.w3.org/2000/svg';
+  
+  // State
+  let nodes = [
+    { id: 'node1', x: 150, y: 100, ports: [{ id: 'p1', x: 220, y: 70 }] },
+    { id: 'node2', x: 550, y: 250, ports: [{ id: 'p1', x: 220, y: 70 }] }
+  ];
+  let edges = [];
+  let selectedEdgeId = null;
+  let selectedNodeId = null;
+  let dragState = null;
+  let panState = null;
+  let viewBox = { x: 0, y: 0, width: 1200, height: 800 };
+  let edgeIdCounter = 0;
+
+  // Helper functions
+  function el(tag, attrs = {}, children = []) {
+    const elem = document.createElementNS(NS, tag);
+    for (const [k, v] of Object.entries(attrs)) {
+      elem.setAttribute(k, v);
+    }
+    children.forEach(c => elem.appendChild(c));
+    return elem;
+  }
+
+  function txt(content, attrs = {}) {
+    const t = document.createElementNS(NS, 'text');
+    for (const [k, v] of Object.entries(attrs)) {
+      t.setAttribute(k, v);
+    }
+    t.textContent = content;
+    return t;
+  }
+
+  function parsePduLines(text) {
+    const lines = text.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+    const out = [];
+    for (const ln of lines) {
+      const parts = ln.split('.');
+      if (parts.length !== 2) throw new Error(`PDU形式が不正: "${ln}"（例: Drone.pos）`);
+      out.push({ robot_name: parts[0], pdu_name: parts[1] });
+    }
+    return out;
+  }
+
+  function wireTxEndpoint(dstNodeId) { return `wire_tx_to_${dstNodeId}`; }
+  function wireRxEndpoint(srcNodeId) { return `wire_rx_from_${srcNodeId}`; }
+  function endpointToFile(nodeId, endpointId) { return `${nodeId}_${endpointId}.json`; }
+
+  function getNodeEndpoints(nodeId) {
+    const eps = new Set(['local']);
+    edges.forEach(e => {
+      if (e.source === nodeId) eps.add(wireTxEndpoint(e.target));
+      if (e.target === nodeId) eps.add(wireRxEndpoint(e.source));
+    });
+    return Array.from(eps).sort();
+  }
+
+  // Canvas interaction
+  function getMousePos(evt) {
+    const rect = svg.getBoundingClientRect();
+    const scaleX = viewBox.width / rect.width;
+    const scaleY = viewBox.height / rect.height;
+    return {
+      x: viewBox.x + (evt.clientX - rect.left) * scaleX,
+      y: viewBox.y + (evt.clientY - rect.top) * scaleY
+    };
+  }
+
+  // Render
+  function render() {
+    svg.innerHTML = '';
+    svg.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`);
+
+    // Defs for arrowhead
+    const defs = el('defs');
+    const marker = el('marker', {
+      id: 'arrowhead',
+      markerWidth: '10',
+      markerHeight: '10',
+      refX: '9',
+      refY: '3',
+      orient: 'auto',
+      markerUnits: 'strokeWidth'
+    });
+    marker.appendChild(el('path', { d: 'M0,0 L0,6 L9,3 z', fill: '#666' }));
+    defs.appendChild(marker);
+    svg.appendChild(defs);
+
+    // Render nodes FIRST (so edges appear on top)
+    nodes.forEach(node => {
+      const g = el('g', { class: 'node' });
+      
+      // Node background
+      const nodeRect = el('rect', {
+        x: node.x,
+        y: node.y,
+        width: 240,
+        height: 100,
+        rx: 14,
+        class: 'node-rect',
+        style: node.id === selectedNodeId ? 'stroke: #2563eb; stroke-width: 2.5;' : ''
+      });
+      g.appendChild(nodeRect);
+
+      // Title
+      const title = txt(node.id, {
+        x: node.x + 12,
+        y: node.y + 24,
+        class: 'node-title'
+      });
+      g.appendChild(title);
+
+      // Badge
+      const badge = txt(`${node.ports.length} ports`, {
+        x: node.x + 228,
+        y: node.y + 22,
+        'text-anchor': 'end',
+        class: 'node-badge'
+      });
+      g.appendChild(badge);
+
+      // Endpoints info
+      const eps = getNodeEndpoints(node.id);
+      const epsText = eps.slice(0, 3).join(', ') + (eps.length > 3 ? ` +${eps.length - 3}` : '');
+      const info = txt(`endpoints: ${epsText}`, {
+        x: node.x + 12,
+        y: node.y + 45,
+        class: 'node-info'
+      });
+      g.appendChild(info);
+
+      const hint = txt('クリックで選択', {
+        x: node.x + 12,
+        y: node.y + 65,
+        'font-size': '10',
+        fill: '#999',
+        'pointer-events': 'none'
+      });
+      g.appendChild(hint);
+
+      // Click to select node & Drag node
+      let mouseDownPos = null;
+      g.onmousedown = (e) => {
+        if (e.target.closest('.port')) return;
+        e.stopPropagation();
+        const pos = getMousePos(e);
+        mouseDownPos = { x: pos.x, y: pos.y };
+        dragState = { type: 'node', nodeId: node.id, startX: node.x, startY: node.y, mouseStartX: pos.x, mouseStartY: pos.y };
+      };
+
+      g.onmouseup = (e) => {
+        if (!mouseDownPos) return;
+        const pos = getMousePos(e);
+        const dx = Math.abs(pos.x - mouseDownPos.x);
+        const dy = Math.abs(pos.y - mouseDownPos.y);
+        
+        // If mouse didn't move much, treat as click
+        if (dx < 5 && dy < 5) {
+          console.log('Node clicked:', node.id);
+          selectNode(node.id);
+        }
+        mouseDownPos = null;
+      };
+
+      svg.appendChild(g);
+
+      // Render ports
+      node.ports.forEach(port => {
+        const portG = el('g', { class: 'port' });
+        const portCircle = el('circle', {
+          cx: node.x + port.x,
+          cy: node.y + port.y,
+          r: 6,
+          fill: '#111'
+        });
+        portG.appendChild(portCircle);
+
+        portG.onmousedown = (e) => {
+          e.stopPropagation();
+          const pos = getMousePos(e);
+          dragState = { 
+            type: 'port', 
+            nodeId: node.id, 
+            portId: port.id,
+            connecting: false,
+            mouseStartX: pos.x,
+            mouseStartY: pos.y
+          };
+          portG.classList.add('dragging');
+        };
+
+        svg.appendChild(portG);
+      });
+    });
+
+    // Render edges AFTER nodes (so they appear on top)
+    edges.forEach(edgeItem => {
+      const srcNode = nodes.find(n => n.id === edgeItem.source);
+      const dstNode = nodes.find(n => n.id === edgeItem.target);
+      const srcPort = srcNode?.ports.find(p => p.id === edgeItem.sourceHandle);
+      const dstPort = dstNode?.ports.find(p => p.id === edgeItem.targetHandle);
+      
+      if (!srcPort || !dstPort) return;
+
+      const x1 = srcNode.x + srcPort.x;
+      const y1 = srcNode.y + srcPort.y;
+      const x2 = dstNode.x + dstPort.x;
+      const y2 = dstNode.y + dstPort.y;
+
+      const line = el('line', {
+        x1, y1, x2, y2,
+        stroke: edgeItem.id === selectedEdgeId ? '#2563eb' : '#999',
+        'stroke-width': edgeItem.id === selectedEdgeId ? '3' : '2',
+        'marker-end': 'url(#arrowhead)',
+        class: `edge ${edgeItem.id === selectedEdgeId ? 'selected' : ''}`
+      });
+      line.onclick = () => selectEdge(edgeItem.id);
+      svg.appendChild(line);
+
+      // Label
+      const mx = (x1 + x2) / 2;
+      const my = (y1 + y2) / 2;
+      const label = txt(edgeItem.data?.policy?.type || 'immediate', {
+        x: mx, y: my - 5,
+        'text-anchor': 'middle',
+        'font-size': '11',
+        fill: '#666',
+        'pointer-events': 'none'
+      });
+      svg.appendChild(label);
+    });
+
+    // Temp edge while connecting
+    if (dragState?.type === 'port' && dragState.connecting && dragState.tempLine) {
+      svg.appendChild(dragState.tempLine);
+    }
+
+    updateNodeConfig();
+    updateEdgeConfig();
+    updateJSONPreview();
+  }
+
+  // Mouse events
+  svg.onmousemove = (e) => {
+    const pos = getMousePos(e);
+
+    if (dragState?.type === 'node') {
+      const dx = pos.x - dragState.mouseStartX;
+      const dy = pos.y - dragState.mouseStartY;
+      const node = nodes.find(n => n.id === dragState.nodeId);
+      if (node) {
+        node.x = dragState.startX + dx;
+        node.y = dragState.startY + dy;
+        render();
+      }
+    } else if (dragState?.type === 'port') {
+      const node = nodes.find(n => n.id === dragState.nodeId);
+      const port = node?.ports.find(p => p.id === dragState.portId);
+      
+      if (!port) return;
+
+      const dx = Math.abs(pos.x - dragState.mouseStartX);
+      const dy = Math.abs(pos.y - dragState.mouseStartY);
+
+      // Start connecting if moved > 5px
+      if (!dragState.connecting && (dx > 5 || dy > 5)) {
+        dragState.connecting = true;
+      }
+
+      if (dragState.connecting) {
+        // Draw temp line
+        const x1 = node.x + port.x;
+        const y1 = node.y + port.y;
+        dragState.tempLine = el('line', {
+          x1, y1, x2: pos.x, y2: pos.y,
+          stroke: '#4a9eff',
+          'stroke-width': '2',
+          'stroke-dasharray': '5,5',
+          'pointer-events': 'none'
+        });
+        render();
+      } else {
+        // Move port within node
+        port.x = Math.max(10, Math.min(230, pos.x - node.x));
+        port.y = Math.max(35, Math.min(90, pos.y - node.y));
+        render();
+      }
+    } else if (panState) {
+      const dx = (e.clientX - panState.startX) * (viewBox.width / svg.clientWidth);
+      const dy = (e.clientY - panState.startY) * (viewBox.height / svg.clientHeight);
+      viewBox.x = panState.viewBoxStartX - dx;
+      viewBox.y = panState.viewBoxStartY - dy;
+      render();
+    }
+  };
+
+  svg.onmouseup = (e) => {
+    if (dragState?.type === 'port' && dragState.connecting) {
+      // Try to connect to another port
+      const pos = getMousePos(e);
+      
+      for (const targetNode of nodes) {
+        for (const targetPort of targetNode.ports) {
+          const px = targetNode.x + targetPort.x;
+          const py = targetNode.y + targetPort.y;
+          const dist = Math.sqrt((pos.x - px)**2 + (pos.y - py)**2);
+          
+          if (dist < 15 && (targetNode.id !== dragState.nodeId || targetPort.id !== dragState.portId)) {
+            // Create edge
+            const newEdge = {
+              id: `edge_${edgeIdCounter++}`,
+              source: dragState.nodeId,
+              sourceHandle: dragState.portId,
+              target: targetNode.id,
+              targetHandle: targetPort.id,
+              data: {
+                name: `${dragState.nodeId}->${targetNode.id}`,
+                policy: { type: 'immediate' },
+                transfer_pdus: [
+                  { robot_name: 'Drone', pdu_name: 'pos' },
+                  { robot_name: 'Drone', pdu_name: 'status' }
+                ]
+              }
+            };
+            edges.push(newEdge);
+            selectedEdgeId = newEdge.id;
+            break;
+          }
+        }
+      }
+    }
+
+    dragState = null;
+    panState = null;
+    svg.classList.remove('dragging');
+    render();
+  };
+
+  svg.onmousedown = (e) => {
+    if (e.target === svg) {
+      svg.classList.add('dragging');
+      panState = {
+        startX: e.clientX,
+        startY: e.clientY,
+        viewBoxStartX: viewBox.x,
+        viewBoxStartY: viewBox.y
+      };
+    }
+  };
+
+  // Node operations
+  function addPort(nodeId) {
+    console.log('addPort called for:', nodeId);
+    const node = nodes.find(n => n.id === nodeId);
+    console.log('Found node:', node);
+    if (!node) return;
+    const newPort = {
+      id: `p${node.ports.length + 1}`,
+      x: 220,
+      y: 70 + node.ports.length * 15
+    };
+    console.log('Adding new port:', newPort);
+    node.ports.push(newPort);
+    console.log('Node ports after push:', node.ports);
+    render();
+  }
+
+  function removePort(nodeId) {
+    const node = nodes.find(n => n.id === nodeId);
+    if (!node || node.ports.length <= 1) return;
+    node.ports.pop();
+    render();
+  }
+
+  function addNode() {
+    const id = prompt('node id（例: node3）', `node${nodes.length + 1}`);
+    if (!id) return;
+    if (nodes.some(n => n.id === id)) {
+      alert('同じ node id が既にあります');
+      return;
+    }
+    nodes.push({
+      id,
+      x: 150 + nodes.length * 50,
+      y: 100 + nodes.length * 50,
+      ports: [{ id: 'p1', x: 220, y: 70 }]
+    });
+    render();
+  }
+
+  function selectNode(nodeId) {
+    console.log('selectNode called with:', nodeId);
+    selectedNodeId = nodeId;
+    selectedEdgeId = null; // Deselect edge when selecting node
+    console.log('selectedNodeId is now:', selectedNodeId);
+    render();
+  }
+
+  function selectEdge(edgeId) {
+    selectedEdgeId = edgeId;
+    selectedNodeId = null; // Deselect node when selecting edge
+    render();
+  }
+
+  // Node config UI
+  function updateNodeConfig() {
+    console.log('updateNodeConfig called, selectedNodeId:', selectedNodeId);
+    const container = document.getElementById('node-config');
+    const currentNode = nodes.find(n => n.id === selectedNodeId);
+    console.log('Found node:', currentNode);
+    
+    if (!currentNode) {
+      container.innerHTML = '<div class="muted">ノードをクリックすると編集できます。</div>';
+      return;
+    }
+
+    container.innerHTML = `
+      <div class="grid">
+        <div>Node ID</div>
+        <div style="font-weight: 600; color: #2563eb;">${currentNode.id}</div>
+        
+        <div>ポート数</div>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <button class="btn" id="add-port-btn" style="padding: 4px 12px;">+ 追加</button>
+          <button class="btn" id="remove-port-btn" style="padding: 4px 12px;">− 削除</button>
+          <span style="color: #666; font-size: 12px;">${currentNode.ports.length} ports</span>
+        </div>
+
+        <div>Endpoints</div>
+        <div style="font-size: 11px; color: #666;">
+          ${getNodeEndpoints(currentNode.id).map(ep => `<code style="background: #f3f3f3; padding: 2px 6px; border-radius: 4px; margin-right: 4px;">${ep}</code>`).join('')}
+        </div>
+
+        <div></div>
+        <button class="btn" id="delete-node-btn" style="background: #fee; color: #c00; border-color: #fcc; margin-top: 8px;">ノードを削除</button>
+      </div>
+    `;
+
+    // Event listeners
+    document.getElementById('add-port-btn').onclick = () => {
+      console.log('Add port button clicked in sidebar');
+      addPort(currentNode.id);
+    };
+
+    document.getElementById('remove-port-btn').onclick = () => {
+      console.log('Remove port button clicked in sidebar');
+      removePort(currentNode.id);
+    };
+
+    document.getElementById('delete-node-btn').onclick = () => {
+      if (confirm(`ノード "${currentNode.id}" を削除しますか？`)) {
+        deleteNode(currentNode.id);
+      }
+    };
+  }
+
+  // Edge config UI
+  function updateEdgeConfig() {
+    const container = document.getElementById('edge-config');
+    const currentEdge = edges.find(e => e.id === selectedEdgeId);
+    
+    if (!currentEdge) {
+      container.innerHTML = '<div class="muted">線をクリックすると編集できます。</div>';
+      return;
+    }
+
+    container.innerHTML = `
+      <div class="grid">
+        <div>name</div>
+        <input type="text" id="edge-name" value="${currentEdge.data?.name || ''}" />
+        
+        <div>policy</div>
+        <select id="edge-policy">
+          <option value="immediate" ${currentEdge.data?.policy?.type === 'immediate' ? 'selected' : ''}>immediate</option>
+          <option value="throttle" ${currentEdge.data?.policy?.type === 'throttle' ? 'selected' : ''}>throttle</option>
+          <option value="ticker" ${currentEdge.data?.policy?.type === 'ticker' ? 'selected' : ''}>ticker</option>
+        </select>
+        
+        <div>interval_ms</div>
+        <input type="number" id="edge-interval" min="0" step="1" 
+          value="${currentEdge.data?.policy?.interval_ms || ''}"
+          ${currentEdge.data?.policy?.type === 'immediate' ? 'disabled' : ''}
+          placeholder="throttle/ticker のみ" />
+        
+        <div>PDU</div>
+        <textarea id="edge-pdus" placeholder="1行1PDU: Drone.pos">${(currentEdge.data?.transfer_pdus || []).map(p => `${p.robot_name}.${p.pdu_name}`).join('\n')}</textarea>
+        
+        <div>info</div>
+        <div class="muted">${currentEdge.source}.${currentEdge.sourceHandle} → ${currentEdge.target}.${currentEdge.targetHandle}</div>
+        
+        <div></div>
+        <button class="btn" id="delete-edge-btn" style="background: #fee; color: #c00; border-color: #fcc;">線を削除</button>
+      </div>
+    `;
+
+    // Event listeners
+    document.getElementById('edge-name').oninput = (e) => {
+      const edgeToUpdate = edges.find(ed => ed.id === selectedEdgeId);
+      if (edgeToUpdate) {
+        edgeToUpdate.data.name = e.target.value;
+        updateJSONPreview();
+      }
+    };
+
+    document.getElementById('edge-policy').onchange = (e) => {
+      const edgeToUpdate = edges.find(ed => ed.id === selectedEdgeId);
+      if (edgeToUpdate) {
+        const type = e.target.value;
+        edgeToUpdate.data.policy = { type };
+        if (edgeToUpdate.data.policy.interval_ms && type === 'immediate') {
+          delete edgeToUpdate.data.policy.interval_ms;
+        }
+        document.getElementById('edge-interval').disabled = (type === 'immediate');
+        render();
+      }
+    };
+
+    document.getElementById('edge-interval').oninput = (e) => {
+      const edgeToUpdate = edges.find(ed => ed.id === selectedEdgeId);
+      if (edgeToUpdate) {
+        const val = parseInt(e.target.value);
+        if (val > 0) {
+          edgeToUpdate.data.policy.interval_ms = val;
+          updateJSONPreview();
+        }
+      }
+    };
+
+    document.getElementById('edge-pdus').oninput = (e) => {
+      const edgeToUpdate = edges.find(ed => ed.id === selectedEdgeId);
+      if (edgeToUpdate) {
+        try {
+          edgeToUpdate.data.transfer_pdus = parsePduLines(e.target.value);
+          updateJSONPreview();
+        } catch (err) {
+          // Ignore parse errors during typing
+        }
+      }
+    };
+
+    document.getElementById('delete-edge-btn').onclick = () => {
+      deleteEdge(currentEdge.id);
+    };
+  }
+
+  function deleteNode(nodeId) {
+    nodes = nodes.filter(n => n.id !== nodeId);
+    // Also delete edges connected to this node
+    edges = edges.filter(e => e.source !== nodeId && e.target !== nodeId);
+    selectedNodeId = null;
+    render();
+  }
+
+  function deleteEdge(edgeId) {
+    edges = edges.filter(e => e.id !== edgeId);
+    selectedEdgeId = null;
+    render();
+  }
+
+  // Export
+  function exportNodeConfigs() {
+    const out = {};
+
+    for (const node of nodes) {
+      const eps = getNodeEndpoints(node.id);
+      const endpointsObj = {};
+      for (const epId of eps) {
+        endpointsObj[epId] = { file: endpointToFile(node.id, epId) };
+      }
+      out[node.id] = { node: node.id, endpoints: endpointsObj, bridges: [] };
+    }
+
+    for (const edgeItem of edges) {
+      const policy = edgeItem.data?.policy || { type: 'immediate' };
+      const transfer_pdus = edgeItem.data?.transfer_pdus || [];
+
+      out[edgeItem.source].bridges.push({
+        name: `tx_${edgeItem.source}_to_${edgeItem.target}`,
+        source_endpoint: 'local',
+        dest_endpoints: [wireTxEndpoint(edgeItem.target)],
+        default_policy: policy,
+        transfer_pdus
+      });
+
+      out[edgeItem.target].bridges.push({
+        name: `rx_${edgeItem.source}_to_${edgeItem.target}`,
+        source_endpoint: wireRxEndpoint(edgeItem.source),
+        dest_endpoints: ['local'],
+        default_policy: policy,
+        transfer_pdus
+      });
+    }
+
+    return out;
+  }
+
+  function updateJSONPreview() {
+    document.getElementById('json-preview').textContent = 
+      JSON.stringify(exportNodeConfigs(), null, 2);
+  }
+
+  function downloadJSON() {
+    const json = JSON.stringify(exportNodeConfigs(), null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'hakoniwa-node-configs.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // Initialize
+  document.getElementById('add-node-btn').onclick = addNode;
+  document.getElementById('download-btn').onclick = downloadJSON;
+  
+  render();
+})();
+</script>
+</body>
+</html>
