@@ -1,0 +1,31 @@
+#include "hakoniwa/pdu/bridge/policy/ticker_policy.hpp"
+
+namespace hako::pdu::bridge {
+
+TickerPolicy::TickerPolicy(std::chrono::milliseconds interval)
+    : interval_(interval), initialized_(false) {}
+
+bool TickerPolicy::should_transfer(std::chrono::steady_clock::time_point now) {
+    if (!initialized_) {
+        // On the first check, set the initial tick time but do not trigger a transfer.
+        // The first transfer will occur after the first interval has passed.
+        next_tick_time_ = now + interval_;
+        initialized_ = true;
+        return false;
+    }
+    return now >= next_tick_time_;
+}
+
+void TickerPolicy::on_transferred(std::chrono::steady_clock::time_point now) {
+    // This method is called after a transfer has been made.
+    // We need to schedule the next tick.
+    // To prevent drift, we calculate the next tick based on the previous scheduled tick,
+    // not the current time 'now'.
+    // We also loop to ensure the next tick is in the future, in case the system has
+    // lagged for more than one interval.
+    do {
+        next_tick_time_ += interval_;
+    } while (next_tick_time_ <= now);
+}
+
+} // namespace hako::pdu::bridge

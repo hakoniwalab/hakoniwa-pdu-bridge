@@ -41,6 +41,50 @@ bridgeは「転送の判断」だけを行い、実データの送受はendpoint
 
 ---
 
+## ビルドと実行
+
+本プロジェクトのビルドには `cmake` が必要です。
+
+### 依存関係
+
+- C++20 対応コンパイラ (GCC, Clangなど)
+- CMake (3.16以上)
+- Hakoniwaコアライブラリ ( `/usr/local/hakoniwa` にインストールされている必要があります)
+
+### ビルド手順
+
+標準的な out-of-source ビルドを推奨します。
+
+```bash
+# 1. git submoduleを初期化・更新
+git submodule update --init --recursive
+
+# 2. ビルドディレクトリを作成
+mkdir build
+cd build
+
+# 3. CMakeでビルドファイルを生成
+cmake ..
+
+# 4. ビルドを実行
+make
+```
+
+ビルドが成功すると、`build` ディレクトリ内に `hakoniwa-pdu-bridge` という実行ファイルが生成されます。
+
+### 実行
+
+プロジェクトのルートディレクトリから、以下のように実行します。
+
+```bash
+./build/hakoniwa-pdu-bridge config/sample/simple-bridge.json
+```
+
+実行すると、設定ファイルに従ってPDU転送のデバッグメッセージがコンソールに表示されます。
+プログラムを停止するには `Ctrl+C` を押してください。
+
+---
+
 ## 転送ポリシー
 
 PDUの転送タイミングは、現実世界の物理現象や情報伝達の性質を模擬する上で極めて重要です。本ブリッジでは、その性質を **3つの時間モデル** として抽象化し、転送ポリシーとして提供します。
