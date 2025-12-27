@@ -4,12 +4,13 @@
 #include <vector>
 #include <memory>
 #include <atomic>
+#include <string>
 
 namespace hako::pdu::bridge {
 
 class BridgeCore {
 public:
-    BridgeCore();
+    BridgeCore(const std::string& node_name);
     ~BridgeCore() = default;
 
     void add_connection(std::unique_ptr<BridgeConnection> connection);
@@ -21,10 +22,9 @@ public:
     void stop();
 
 private:
+    std::string node_name_;
     std::vector<std::unique_ptr<BridgeConnection>> connections_;
     std::atomic<bool> is_running_;
 };
 
 } // namespace hako::pdu::bridge
-
-

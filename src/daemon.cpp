@@ -57,13 +57,15 @@ public:
 
 
 int main(int argc, char* argv[]) {
-    if (argc != 2) {
-        std::cerr << "Usage: " << argv[0] << " <path_to_bridge.json>" << std::endl;
+    if (argc < 2) {
+        std::cerr << "Usage: " << argv[0] << " <path_to_bridge.json> [node_name]" << std::endl;
         return 1;
     }
     signal(SIGINT, signal_handler);
 
     std::string config_path = argv[1];
+    std::string node_name = (argc > 2) ? argv[2] : "node1";
+
 
     try {
         // 1. Mock PDU definitions and Endpoints for this sample.
@@ -76,7 +78,7 @@ int main(int argc, char* argv[]) {
         pdu_def_node1->pdu_definitions_["Drone"]["hako_camera_data"] = {"sensor_msgs/Image", "hako_camera_data", "hako_camera_data", 3, 65536, "shm"};
 
         std::map<std::string, std::shared_ptr<hakoniwa::pdu::PduDefinition>> pdu_definitions;
-        pdu_definitions["node1"] = pdu_def_node1;
+        pdu_definitions[node_name] = pdu_def_node1;
 
         // Create mock endpoints
         auto ep_src = std::make_shared<MockEndpoint>("n1-epSrc");
@@ -92,9 +94,9 @@ int main(int argc, char* argv[]) {
 
 
         // 2. Load the bridge core using the configuration and mocked objects
-        g_core = hako::pdu::bridge::BridgeLoader::load(config_path, endpoints, pdu_definitions);
+        g_core = hako::pdu::bridge::BridgeLoader::load(config_path, node_name, endpoints, pdu_definitions);
 
-        std::cout << "Bridge core loaded. Running... (Press Ctrl+C to stop)" << std::endl;
+        std::cout << "Bridge core loaded for node " << node_name << ". Running... (Press Ctrl+C to stop)" << std::endl;
         g_core->run();
         std::cout << "Bridge core stopped." << std::endl;
 

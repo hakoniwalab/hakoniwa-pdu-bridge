@@ -4,7 +4,8 @@
 
 namespace hako::pdu::bridge {
 
-BridgeCore::BridgeCore() : is_running_(false) {}
+BridgeCore::BridgeCore(const std::string& node_name) 
+    : node_name_(node_name), is_running_(false) {}
 
 void BridgeCore::add_connection(std::unique_ptr<BridgeConnection> connection) {
     connections_.push_back(std::move(connection));

@@ -81,11 +81,12 @@ namespace hako::pdu::bridge {
 
     std::unique_ptr<BridgeCore> BridgeLoader::load(
         const std::string& config_path,
+        const std::string& node_name,
         const std::map<std::string, std::shared_ptr<hakoniwa::pdu::Endpoint>>& endpoints,
         const std::map<std::string, std::shared_ptr<hakoniwa::pdu::PduDefinition>>& pdu_definitions)
     {
         auto config = parse_config_from_file(config_path);
-        auto core = std::make_unique<BridgeCore>();
+        auto core = std::make_unique<BridgeCore>(node_name);
 
         // 1. Instantiate policies
         std::map<std::string, std::shared_ptr<IPduTransferPolicy>> policy_map;
@@ -105,7 +106,10 @@ namespace hako::pdu::bridge {
 
         // 2. Create Connections and TransferPdus
         for (const auto& conn_def : config.connections) {
-            auto connection = std::make_unique<BridgeConnection>();
+            if (conn_def.nodeId != node_name) {
+                continue; // Skip connections not intended for this node
+            }
+            auto connection = std::make_unique<BridgeConnection>(conn_def.nodeId);
             
             auto src_ep_it = endpoints.find(conn_def.source.endpointId);
             if (src_ep_it == endpoints.end()) throw std::runtime_error("Source endpoint not found: " + conn_def.source.endpointId);
