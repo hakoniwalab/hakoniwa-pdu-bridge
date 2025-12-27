@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-  <title>Hakoniwa Bridge Visualizer - Fixed Edition</title>
+  <title>Hakoniwa Bridge Visualizer v2.3 - Directional Edition</title>
 
   <link rel="stylesheet" href="https://unpkg.com/reactflow@11.11.4/dist/style.css">
 
@@ -15,49 +15,49 @@
     .main { flex: 1; display: flex; overflow: hidden; }
     
     /* Sidebar */
-    .sidebar { width: 450px; border-right: 1px solid #e2e8f0; background: #fff; padding: 1.25rem; overflow-y: auto; z-index: 40; display: flex; flex-direction: column; }
+    .sidebar { width: 480px; border-right: 1px solid #e2e8f0; background: #fff; padding: 1.25rem; overflow-y: auto; z-index: 40; display: flex; flex-direction: column; }
     .canvas { flex: 1; position: relative; background: #f8fafc; }
 
-    .btn { cursor: pointer; border: none; padding: .6rem .8rem; border-radius: .4rem; font-weight: 600; font-size: 13px; transition: opacity 0.2s; }
+    .btn { cursor: pointer; border: none; padding: .6rem .8rem; border-radius: .4rem; font-weight: 600; font-size: 13px; }
     .btn.primary { background: #2563eb; color: #fff; }
-    .btn.secondary { background: #64748b; color: #fff; }
     .btn.outline { background: transparent; border: 1px solid #cbd5e1; color: #334155; }
-    .btn:hover { opacity: 0.9; }
 
     textarea {
-      width: 100%; flex: 1; font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+      width: 100%; flex: 1; font-family: 'SFMono-Regular', Consolas, monospace;
       font-size: 11px; padding: .75rem; border: 1px solid #e2e8f0; border-radius: .35rem; resize: none; margin-bottom: 1rem;
-      background: #fdfdfd; line-height: 1.5;
+      background: #fdfdfd; line-height: 1.4;
     }
 
-    .error-box { margin-bottom: 1rem; padding: .75rem; background: #fef2f2; border: 1px solid #fca5a5; border-radius: .35rem; color: #b91c1c; font-size: 12px; white-space: pre-wrap; }
-    .status-ok { color: #16a34a; font-size: 12px; font-weight: bold; }
+    .error-box { margin-bottom: 1rem; padding: .75rem; background: #fef2f2; border: 1px solid #fca5a5; border-radius: .35rem; color: #b91c1c; font-size: 12px; }
 
     /* --- Custom Node Styles --- */
-    .bridge-node { background: #fff; border: 2px solid #334155; border-radius: 8px; min-width: 300px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-    .node-header { background: #334155; color: white; padding: 8px 12px; border-radius: 5px 5px 0 0; font-weight: 800; font-size: 13px; display: flex; justify-content: space-between; }
-    .node-body { padding: 12px; }
+    .bridge-node { background: #fff; border: 2px solid #334155; border-radius: 10px; min-width: 320px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
+    .node-header { background: #334155; color: white; padding: 10px 14px; border-radius: 8px 8px 0 0; font-weight: 800; font-size: 14px; text-align: center; }
+    .node-body { padding: 14px; }
     
-    .section-title { font-size: 10px; color: #94a3b8; font-weight: 800; text-transform: uppercase; margin: 12px 0 6px 0; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; }
+    .section-title { font-size: 10px; color: #94a3b8; font-weight: 800; text-transform: uppercase; margin: 15px 0 8px 0; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; }
 
-    /* Endpoints with Handles */
-    .ep-item { position: relative; display: flex; align-items: center; margin-bottom: 6px; }
+    /* Endpoints */
+    .ep-item { position: relative; display: flex; align-items: center; margin-bottom: 8px; height: 32px; }
     .pill {
-      display: flex; align-items: center; gap: 8px; width: 100%; padding: 4px 12px; border-radius: 6px;
+      display: flex; align-items: center; width: 100%; padding: 6px 12px; border-radius: 6px;
       font-size: 11px; font-weight: 700; border: 1px solid; justify-content: space-between;
     }
-    .pill.local { background: #eff6ff; border-color: #bfdbfe; color: #1d4ed8; }
+    .pill.local { background: #f8fafc; border-color: #cbd5e1; color: #475569; border-style: dashed; }
     .pill.wire  { background: #faf5ff; border-color: #e9d5ff; color: #7e22ce; }
+    .direction-icon { font-size: 14px; opacity: 0.8; }
 
     /* ReactFlow Handles */
-    .react-flow__handle { width: 10px; height: 10px; border: 2px solid #fff; }
-    .react-flow__handle-left { left: -16px; }
-    .react-flow__handle-right { right: -16px; }
+    .react-flow__handle { width: 12px; height: 12px; border: 2px solid #fff; }
+    .handle-in { background: #3b82f6 !important; } /* Blue for input */
+    .handle-out { background: #a855f7 !important; } /* Purple for output */
 
-    /* Connection Card */
-    .conn-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px; margin-top: 6px; }
-    .conn-path { font-family: monospace; font-size: 11px; font-weight: bold; color: #1e293b; margin-bottom: 4px; }
-    .pdu-tag { font-family: monospace; font-size: 10px; color: #64748b; background: #fff; border: 1px solid #e2e8f0; padding: 1px 4px; border-radius: 3px; display: inline-block; margin-right: 4px; }
+    /* Connections */
+    .conn-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px; margin-top: 8px; }
+    .conn-path { font-family: monospace; font-size: 11px; font-weight: bold; color: #1e293b; margin-bottom: 6px; display: block; border-left: 3px solid #3b82f6; padding-left: 6px; }
+    .pdu-group-box { margin-top: 6px; padding-left: 4px; }
+    .pdu-row { font-size: 10px; color: #64748b; margin-bottom: 2px; display: block; }
+    .policy-tag { font-size: 9px; background: #fee2e2; color: #b91c1c; padding: 1px 4px; border-radius: 4px; margin-left: 6px; font-weight: normal; }
 
     input[type="file"] { display: none; }
   </style>
@@ -76,59 +76,109 @@
       const { useState, useEffect, useCallback } = React;
       const { ReactFlow, Background, Controls, MiniMap, Panel, useNodesState, useEdgesState, MarkerType, Handle, Position } = window.ReactFlow;
 
-      // ---- JSON Schema ----
-      const BRIDGE_SCHEMA = {
-        type: "object",
-        required: ["nodes", "endpoints"],
-        properties: {
-          nodes: { type: "array" },
-          endpoints: { type: "array" },
-          wireLinks: { type: "array" },
-          connections: { type: "array" }
-        }
-      };
-
       const SAMPLE_DATA = {
         "version": "2.0.0",
-        "nodes": [{ "id": "DroneNode" }, { "id": "GCSNode" }],
+        "transferPolicies": {
+          "immediate": { "type": "immediate" },
+          "throttle1": { "type": "throttle", "intervalMs": 10 },
+          "ticker1": { "type": "ticker", "intervalMs": 100 }
+        },
+        "nodes": [{ "id": "node1" }, { "id": "node2" }, { "id": "node3" }],
         "endpoints": [
-          { "nodeId": "DroneNode", "endpoints": [{ "id": "D_LOCAL", "mode": "local" }, { "id": "D_WIRE", "mode": "wire" }] },
-          { "nodeId": "GCSNode", "endpoints": [{ "id": "G_WIRE", "mode": "wire" }, { "id": "G_LOCAL", "mode": "local" }] }
+          {
+            "nodeId": "node1",
+            "endpoints": [
+              { "id": "n1-epSrc", "mode": "local", "direction": "in" },
+              { "id": "n1-epDst-1", "mode": "wire", "direction": "out" },
+              { "id": "n1-epDst-2", "mode": "wire", "direction": "out" }
+            ]
+          },
+          {
+            "nodeId": "node2",
+            "endpoints": [
+              { "id": "n2-epSrc", "mode": "wire", "direction": "in" },
+              { "id": "n2-epDst", "mode": "local", "direction": "out" }
+            ]
+          },
+          {
+            "nodeId": "node3",
+            "endpoints": [
+              { "id": "n3-epSrc", "mode": "wire", "direction": "in" },
+              { "id": "n3-epDst", "mode": "local", "direction": "out" }
+            ]
+          }
         ],
-        "wireLinks": [{ "from": "D_WIRE", "to": "G_WIRE" }],
+        "wireLinks": [
+          { "from": "n1-epDst-1", "to": "n2-epSrc" },
+          { "from": "n1-epDst-2", "to": "n3-epSrc" }
+        ],
+        "pduKeyGroups": {
+          "pdu_group1": [
+            { "id": "Robot1.camera", "robot_name": "Robot1", "pdu_name": "camera" },
+            { "id": "Robot1.lidar",  "robot_name": "Robot1", "pdu_name": "lidar" }
+          ],
+          "pdu_group2": [
+            { "id": "Robot2.camera", "robot_name": "Robot2", "pdu_name": "camera" }
+          ]
+        },
         "connections": [
-          { "id": "c1", "nodeId": "DroneNode", "source": { "endpointId": "D_LOCAL" }, "destinations": [{ "endpointId": "D_WIRE" }], "transferPdus": [{ "pduKeyGroupId": "telemetry", "policyId": "fast" }] }
+          {
+            "id": "conn1", "nodeId": "node1", "source": { "endpointId": "n1-epSrc" },
+            "destinations": [{ "endpointId": "n1-epDst-1" }, { "endpointId": "n1-epDst-2" }],
+            "transferPdus": [
+              { "pduKeyGroupId": "pdu_group1", "policyId": "immediate" },
+              { "pduKeyGroupId": "pdu_group2", "policyId": "throttle1" }
+            ]
+          },
+          {
+            "id": "conn2", "nodeId": "node2", "source": { "endpointId": "n2-epSrc" },
+            "destinations": [{ "endpointId": "n2-epDst" }],
+            "transferPdus": [{ "pduKeyGroupId": "pdu_group1", "policyId": "immediate" }]
+          }
         ]
       };
 
-      // ---- Node Component ----
+      // ---- Custom Node ----
       function BridgeNode({ data }) {
         return React.createElement("div", { className: "bridge-node" },
-          React.createElement("div", { className: "node-header" }, 
-            React.createElement("span", null, "ID: " + data.label),
-            React.createElement("span", { style: {opacity: 0.5} }, "#node")
-          ),
+          React.createElement("div", { className: "node-header" }, data.label),
           React.createElement("div", { className: "node-body" },
             
             React.createElement("div", { className: "section-title" }, "Endpoints"),
-            (data.endpoints || []).map(ep => 
-              React.createElement("div", { key: ep.id, className: "ep-item" },
-                React.createElement(Handle, { type: "target", position: Position.Left, id: ep.id, style: { background: ep.mode === "wire" ? "#a855f7" : "#3b82f6" } }),
-                React.createElement("div", { className: "pill " + (ep.mode === "wire" ? "wire" : "local") },
-                  React.createElement("span", null, ep.id),
-                  React.createElement("span", { style: { fontSize: '8px', opacity: 0.6 } }, ep.mode.toUpperCase())
+            (data.endpoints || []).map(ep => {
+              const isWire = ep.mode === "wire";
+              const isIn = ep.direction === "in";
+              return React.createElement("div", { key: ep.id, className: "ep-item" },
+                // IN かつ WIRE なら左にハンドル
+                isWire && isIn && React.createElement(Handle, { 
+                  type: "target", position: Position.Left, id: ep.id, className: "handle-in" 
+                }),
+                
+                React.createElement("div", { className: "pill " + (isWire ? "wire" : "local") },
+                  React.createElement("span", { className: "direction-icon" }, isIn ? "→" : " "),
+                  React.createElement("span", { style: {flex: 1, padding: '0 8px'} }, ep.id),
+                  React.createElement("span", { className: "direction-icon" }, !isIn ? "→" : " ")
                 ),
-                React.createElement(Handle, { type: "source", position: Position.Right, id: ep.id, style: { background: ep.mode === "wire" ? "#a855f7" : "#3b82f6" } })
-              )
-            ),
+
+                // OUT かつ WIRE なら右にハンドル
+                isWire && !isIn && React.createElement(Handle, { 
+                  type: "source", position: Position.Right, id: ep.id, className: "handle-out" 
+                })
+              );
+            }),
 
             data.connections && data.connections.length > 0 && React.createElement(React.Fragment, null,
-              React.createElement("div", { className: "section-title" }, "Internal Connections"),
+              React.createElement("div", { className: "section-title" }, "Connections"),
               data.connections.map((c, i) => 
                 React.createElement("div", { key: i, className: "conn-card" },
-                  React.createElement("div", { className: "conn-path" }, c.source + " → " + c.destinations.join(", ")),
-                  (c.transferPdus || []).map((tp, j) => 
-                    React.createElement("span", { key: j, className: "pdu-tag" }, tp.pduKeyGroupId)
+                  React.createElement("span", { className: "conn-path" }, c.source + " ➔ " + c.destinations.join(", ")),
+                  React.createElement("div", { className: "pdu-group-box" },
+                    (c.transferPdus || []).map((tp, j) => 
+                      React.createElement("div", { key: j, className: "pdu-row" }, 
+                        "• " + tp.pduKeyGroupId,
+                        React.createElement("span", { className: "policy-tag" }, tp.policyId)
+                      )
+                    )
                   )
                 )
               )
@@ -145,7 +195,6 @@
         const [edges, setEdges, onEdgesChange] = useEdgesState([]);
         const [error, setError] = useState(null);
 
-        // グラフ構造の構築
         const buildGraph = (config) => {
           const endpointToNode = new Map();
           const endpointsByNode = new Map();
@@ -168,7 +217,7 @@
           const newNodes = (config.nodes || []).map((n, idx) => ({
             id: n.id,
             type: "bridgeNode",
-            position: { x: 80 + idx * 450, y: 100 },
+            position: { x: 50, y: 50 + idx * 300 }, // 縦並び気味に初期配置
             data: {
               label: n.id,
               endpoints: endpointsByNode.get(n.id) || [],
@@ -191,50 +240,32 @@
           setEdges(newEdges);
         };
 
-        // 重要：テキストまたはファイルから設定を反映するコア関数
         const applyJson = useCallback((text) => {
           setError(null);
           try {
             const parsed = JSON.parse(text);
-            
-            // バリデーション
-            const ajv = new window.ajv7();
-            const validate = ajv.compile(BRIDGE_SCHEMA);
-            if (!validate(parsed)) {
-              setError("Schema Error: " + ajv.errorsText(validate.errors));
-              return;
-            }
-
-            // グラフを構築
             buildGraph(parsed);
-            setJsonText(text); // テキストエリアを同期
+            setJsonText(text);
           } catch (e) {
             setError("JSON Error: " + e.message);
           }
         }, [setNodes, setEdges]);
 
-        // 初期化
-        useEffect(() => {
-          applyJson(jsonText);
-        }, []);
+        useEffect(() => applyJson(jsonText), []);
 
-        // ファイル選択時
         const onFileChange = (e) => {
           const file = e.target.files[0];
           if (!file) return;
           const reader = new FileReader();
-          reader.onload = (ev) => {
-            const content = ev.target.result;
-            applyJson(content); // 読み込んだ内容で直接更新
-          };
+          reader.onload = (ev) => applyJson(ev.target.result);
           reader.readAsText(file);
-          e.target.value = ""; // 同じファイルを再度選択可能に
+          e.target.value = "";
         };
 
         return React.createElement("div", { className: "app" },
           React.createElement("div", { className: "header" },
-            React.createElement("div", { style: { fontWeight: 900 } }, "HAKONIWA VISUALIZER v2.1"),
-            React.createElement("div", { className: "status-ok" }, error ? "" : "✔ Graph Synchronized")
+            React.createElement("div", { style: { fontWeight: 900 } }, "HAKONIWA BRIDGE VISUALIZER v2.3"),
+            React.createElement("div", { style: {fontSize: '11px', opacity: 0.7} }, "Directional Handles (Left=In, Right=Out)")
           ),
 
           React.createElement("div", { className: "main" },
@@ -245,17 +276,12 @@
                   React.createElement("input", { type: "file", onChange: onFileChange })
                 )
               ),
-
               error && React.createElement("div", { className: "error-box" }, error),
-
-              React.createElement("textarea", {
-                value: jsonText,
-                onChange: (e) => setJsonText(e.target.value),
-                spellCheck: false
-              }),
-
-              React.createElement("div", { style: {fontSize: '11px', color: '#64748b'} },
-                "※ 左パネルでJSONを編集後、「Apply Changes」を押すと反映されます。ファイルを読み込んだ場合は即座に反映されます。"
+              React.createElement("textarea", { value: jsonText, onChange: (e) => setJsonText(e.target.value), spellCheck: false }),
+              React.createElement("div", { style: {fontSize: '11px', color: '#64748b', lineHeight: 1.5} },
+                "● direction: 'in' ➔ 左端子(Blue)\n" +
+                "● direction: 'out' ➔ 右端子(Purple)\n" +
+                "● mode: 'local' ➔ 端子なし(箱庭内部用)"
               )
             ),
 
