@@ -80,7 +80,7 @@ components:
   monitor: true
 
 validation:
-  tests: true
+  tests: false
   examples: false
   integration_tcp: false
 
@@ -91,6 +91,12 @@ paths:
 ```
 
 The default configuration is intentionally Core-free. Set `components.hakoniwa_app: true` only when building the Hakoniwa-integrated callback application.
+
+Bridge contract tests use generated PDU types from a `hakoniwa-pdu-registry`
+checkout. To enable them, set `validation.tests: true` and provide
+`HAKO_PDU_REGISTRY_ROOT`. The default standalone build keeps tests disabled so
+that building the Bridge library and tools does not require a sibling source
+checkout.
 
 Detailed design: `docs/build-architecture.md`.
 

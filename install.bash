@@ -2,12 +2,22 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BUILD_DIR="${ROOT_DIR}/build"
-PREFIX="/usr/local/hakoniwa"
+BUILD_DIR="${BUILD_DIR:-${ROOT_DIR}/build}"
+PREFIX="${PREFIX:-/usr/local/hakoniwa}"
+BUILD_TYPE="${BUILD_TYPE:-Release}"
+EXTRA_CMAKE_ARGS="${EXTRA_CMAKE_ARGS:-}"
 
 cmake -S "${ROOT_DIR}" -B "${BUILD_DIR}" \
+  -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
   -DHAKO_PDU_ENDPOINT_PREFIX="${PREFIX}" \
-  -DCMAKE_INSTALL_PREFIX="${PREFIX}"
+  -DCMAKE_INSTALL_PREFIX="${PREFIX}" \
+  -DHAKO_PDU_BRIDGE_BUILD_STANDALONE_APP=ON \
+  -DHAKO_PDU_BRIDGE_BUILD_HAKONIWA_APP=OFF \
+  -DHAKO_PDU_BRIDGE_BUILD_MONITOR=ON \
+  -DHAKO_PDU_BRIDGE_BUILD_TESTS=OFF \
+  -DHAKO_PDU_BRIDGE_BUILD_EXAMPLES=OFF \
+  -DHAKO_PDU_BRIDGE_ENABLE_HAKONIWA_CORE=OFF \
+  ${EXTRA_CMAKE_ARGS}
 
-cmake --build "${BUILD_DIR}"
-cmake --install "${BUILD_DIR}"
+cmake --build "${BUILD_DIR}" --config "${BUILD_TYPE}"
+cmake --install "${BUILD_DIR}" --config "${BUILD_TYPE}" --prefix "${PREFIX}"

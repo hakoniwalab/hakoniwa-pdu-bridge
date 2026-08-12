@@ -14,7 +14,7 @@ components:
   monitor: true
 
 validation:
-  tests: true
+  tests: false
   examples: false
   integration_tcp: false
 
