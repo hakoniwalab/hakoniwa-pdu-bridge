@@ -260,6 +260,11 @@ class BuildContext:
     endpoint_root: Path | None
     core_root: Path | None
     vcpkg_root: Path | None
+    state_dir: Path | None = None
+
+    @property
+    def hako_state_dir(self) -> Path:
+        return self.state_dir or self.repo_root / ".hako"
 
     @property
     def cmake_args(self) -> list[str]:
@@ -294,7 +299,9 @@ class BuildContext:
         return args
 
 
-def create_context(manifest: Path, repo_root: Path) -> BuildContext:
+def create_context(
+    manifest: Path, repo_root: Path, state_dir: Path | None = None
+) -> BuildContext:
     cfg = resolve_config(load_simple_yaml(manifest))
     platform_name, arch = _host_platform()
     build_dir = Path(cfg["build"]["dir"])
@@ -310,6 +317,7 @@ def create_context(manifest: Path, repo_root: Path) -> BuildContext:
         endpoint_root=_find_endpoint_root(cfg, repo_root),
         core_root=_find_core_root(cfg) if cfg["components"]["hakoniwa_app"] else None,
         vcpkg_root=_find_vcpkg_root(cfg, repo_root),
+        state_dir=state_dir.expanduser().resolve() if state_dir is not None else None,
     )
 
 
@@ -362,7 +370,7 @@ def dump_yaml(data: Mapping[str, Any], indent: int = 0) -> str:
 
 
 def write_resolved(ctx: BuildContext) -> Path:
-    out_dir = ctx.repo_root / ".hako"
+    out_dir = ctx.hako_state_dir
     out_dir.mkdir(parents=True, exist_ok=True)
     record = {
         "version": 1,
@@ -527,7 +535,7 @@ def write_receipt(ctx: BuildContext, install_dir: Path) -> Path:
     )
     (install_dir / resolved_relative).parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(
-        ctx.repo_root / ".hako" / "resolved-build.yaml",
+        ctx.hako_state_dir / "resolved-build.yaml",
         install_dir / resolved_relative,
     )
 
@@ -636,6 +644,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--config", default=None, help="build manifest (default: repository root/hakoniwa-build.yaml)")
     parser.add_argument("--install-dir", default=None, help="explicit local install prefix (required by install)")
     parser.add_argument("--dry-run", action="store_true", help="resolve and print without running build commands")
+    parser.add_argument("--state-dir", default=None, help="generated state directory (default: repository root/.hako; relative to cwd)")
     args = parser.parse_args(argv)
 
     repo_root = Path(__file__).resolve().parents[1]
@@ -645,7 +654,8 @@ def main(argv: list[str] | None = None) -> int:
     if not manifest.exists():
         raise ConfigError(f"build manifest not found: {manifest}")
 
-    ctx = create_context(manifest, repo_root)
+    state_dir = Path(args.state_dir) if args.state_dir else None
+    ctx = create_context(manifest, repo_root, state_dir)
     errors, warnings = doctor(ctx)
     print_summary(ctx, errors, warnings)
     resolved = write_resolved(ctx)
