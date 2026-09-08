@@ -25,6 +25,34 @@ namespace {
     std::string tcp_test_config_path(const std::string& filename) {
         return (test_config_root() / "tcp" / filename).string();
     }
+
+    // EndpointContainer is started by the test, not by BridgeCore. Its receive
+    // threads must stop while both cores and their callback targets still live.
+    // Declare this guard after the cores so ASSERT_* early returns are safe too.
+    class TcpFlowShutdown {
+    public:
+        TcpFlowShutdown(BridgeCore* client_core, BridgeCore* server_core,
+                        hakoniwa::pdu::EndpointContainer& client_endpoints,
+                        hakoniwa::pdu::EndpointContainer& server_endpoints)
+            : client_core_(client_core), server_core_(server_core),
+              client_endpoints_(client_endpoints), server_endpoints_(server_endpoints) {}
+
+        ~TcpFlowShutdown() {
+            if (client_core_) { client_core_->stop(); }
+            if (server_core_) { server_core_->stop(); }
+            EXPECT_EQ(client_endpoints_.stop_all(), HAKO_PDU_ERR_OK);
+            EXPECT_EQ(server_endpoints_.stop_all(), HAKO_PDU_ERR_OK);
+        }
+
+        TcpFlowShutdown(const TcpFlowShutdown&) = delete;
+        TcpFlowShutdown& operator=(const TcpFlowShutdown&) = delete;
+
+    private:
+        BridgeCore* client_core_;
+        BridgeCore* server_core_;
+        hakoniwa::pdu::EndpointContainer& client_endpoints_;
+        hakoniwa::pdu::EndpointContainer& server_endpoints_;
+    };
 }
 
 TEST(BridgeTcpFlowTest, ImmediatePolicyCrossNode) {
@@ -43,6 +71,8 @@ TEST(BridgeTcpFlowTest, ImmediatePolicyCrossNode) {
     auto server_core = std::move(server_result.core);
     auto client_core = std::move(client_result.core);
 
+    TcpFlowShutdown shutdown(client_core.get(), server_core.get(),
+                             *client_endpoint_container, *server_endpoint_container);
     ASSERT_TRUE(server_core != nullptr);
     ASSERT_TRUE(client_core != nullptr);
 
@@ -106,9 +136,7 @@ TEST(BridgeTcpFlowTest, ImmediatePolicyCrossNode) {
     ASSERT_EQ(received_size, pdu_size);
     ASSERT_EQ(send_pdu, recv_pdu);
 
-    // 4. Teardown
-    client_core->stop();
-    server_core->stop();
+    // The guard stops both Endpoint containers before either core is destroyed.
 }
 
 TEST(BridgeTcpFlowTest, AtomicPolicyCrossNode) {
@@ -126,6 +154,8 @@ TEST(BridgeTcpFlowTest, AtomicPolicyCrossNode) {
     auto server_core = std::move(server_result.core);
     auto client_core = std::move(client_result.core);
 
+    TcpFlowShutdown shutdown(client_core.get(), server_core.get(),
+                             *client_endpoint_container, *server_endpoint_container);
     ASSERT_TRUE(server_core != nullptr);
     ASSERT_TRUE(client_core != nullptr);
 
@@ -205,9 +235,7 @@ TEST(BridgeTcpFlowTest, AtomicPolicyCrossNode) {
     recv_buffer.resize(received_size);
     ASSERT_EQ(recv_buffer, time_data);
 
-    // 3. Teardown
-    client_core->stop();
-    server_core->stop();
+    // The guard stops both Endpoint containers before either core is destroyed.
 }
 
 }
